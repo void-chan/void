@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Privacy-aware metadata:
+      - No referrer leakage to external sites
+      - No external font providers (fonts are self-hosted)
+      - No analytics, no tracking pixels
+      - robots noindex for local dev (set to "index,follow" in production if desired)
+    -->
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!-- CSP is set by helmet on the backend; this meta tag is a fallback for direct file access -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <title>App</title>
+    <meta name="description" content="Local-first web application." />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
