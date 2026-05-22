@@ -25,10 +25,11 @@ export function anonymousSession(req, res, next) {
 
   if (!anonId || !isValidUUID.test(anonId)) {
     anonId = uuidv4();
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie(COOKIE_NAME, anonId, {
       httpOnly: false,  // Frontend needs to read for display
-      secure: false,    // Set true in prod
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'strict',
       maxAge: MAX_AGE,
       path: '/',
     });
