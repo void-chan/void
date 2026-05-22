@@ -11,7 +11,7 @@
     "db:seed": "node src/utils/seed.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.5.0"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
