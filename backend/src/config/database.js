@@ -15,6 +15,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
+import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { env } from './env.js';
 
@@ -25,7 +26,14 @@ let _db = null;
 export function getDatabase() {
   if (_db) return _db;
 
-  const dbPath = path.resolve(__dirname, '../../', env.db.path);
+  // Support absolute paths (e.g. /data/database.sqlite on Railway)
+  // and relative paths (e.g. ./storage/database.sqlite in dev)
+  const dbPath = path.isAbsolute(env.db.path)
+    ? env.db.path
+    : path.resolve(__dirname, '../../', env.db.path);
+
+  // Ensure parent directory exists — critical for Railway /data volume on first boot
+  mkdirSync(path.dirname(dbPath), { recursive: true });
 
   _db = new DatabaseSync(dbPath);
 
