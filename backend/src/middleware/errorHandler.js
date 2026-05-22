@@ -41,17 +41,22 @@ export function errorHandler(err, req, res, next) {
 
   const statusCode = err.statusCode ?? err.status ?? 500;
 
+  // [AUDIT FIX H1] Show user-facing messages for client errors (4xx) or
+  // errors explicitly marked as safe to expose. Hide 5xx internals in production.
+  const showMessage = env.isDev || err.expose || statusCode < 500;
+
   res.status(statusCode).json({
     success: false,
-    // Never expose internal error details in production
-    message: env.isDev ? err.message : 'Internal server error.',
+    message: showMessage ? err.message : 'Internal server error.',
   });
 }
 
 // 404 fallback for unmatched routes
+// [AUDIT FIX L2] Sanitize reflected path — strip control chars, truncate
 export function notFoundHandler(req, res) {
+  const safePath = req.path.replace(/[^\x20-\x7E]/g, '').slice(0, 200);
   res.status(404).json({
     success: false,
-    message: `Route ${req.method} ${req.path} not found.`,
+    message: `Route ${req.method} ${safePath} not found.`,
   });
 }

@@ -27,11 +27,15 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, env.jwt.secret);
+    const payload = jwt.verify(token, env.jwt.secret, {
+      algorithms: ['HS256'],
+      issuer:     env.jwt.issuer,
+      audience:   env.jwt.audience,
+    });
     req.user = {
-      id:    payload.sub,
-      email: payload.email,
-      role:  payload.role,
+      id:       payload.sub,
+      username: payload.username,
+      role:     payload.role,
     };
     next();
   } catch (err) {
@@ -65,8 +69,12 @@ export function optionalAuth(req, res, next) {
   if (!token) return next();
 
   try {
-    const payload = jwt.verify(token, env.jwt.secret);
-    req.user = { id: payload.sub, email: payload.email, role: payload.role };
+    const payload = jwt.verify(token, env.jwt.secret, {
+      algorithms: ['HS256'],
+      issuer:     env.jwt.issuer,
+      audience:   env.jwt.audience,
+    });
+    req.user = { id: payload.sub, username: payload.username, role: payload.role };
   } catch {
     // Silently ignore invalid token for optional routes
   }

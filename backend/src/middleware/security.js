@@ -23,10 +23,10 @@ export const helmetMiddleware = helmet({
     directives: {
       defaultSrc:     ["'self'"],
       scriptSrc:      ["'self'"],
-      styleSrc:       ["'self'", "'unsafe-inline'"], // Allow inline styles for Vite dev
+      styleSrc:       ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc:         ["'self'", 'data:', 'blob:'],
       connectSrc:     ["'self'"],
-      fontSrc:        ["'self'"],                    // No external fonts — privacy
+      fontSrc:        ["'self'", 'https://fonts.gstatic.com'],
       objectSrc:      ["'none'"],
       frameSrc:       ["'none'"],
       baseUri:        ["'self'"],
@@ -34,7 +34,7 @@ export const helmetMiddleware = helmet({
       upgradeInsecureRequests: env.cookie.secure ? [] : null,
     },
   },
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   hsts: env.cookie.secure
     ? { maxAge: 31536000, includeSubDomains: true }
     : false,
@@ -70,6 +70,30 @@ export const authRateLimiter = rateLimit({
   skipSuccessfulRequests: false,
   handler: (_req, res) =>
     sendError(res, 'Too many authentication attempts. Try again later.', 429),
+});
+
+// ── [AUDIT FIX H2] Recovery Rate Limiter — very strict ────────────────────────
+// Only 3 recovery attempts per hour per IP. Recovery phrase brute-force is
+// infeasible (2^132) but this prevents abuse of the endpoint.
+export const recoverRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,   // 1 hour window
+  max: 3,                      // 3 attempts per hour per IP
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  handler: (_req, res) =>
+    sendError(res, 'Too many recovery attempts. Try again in 1 hour.', 429),
+});
+
+// ── [AUDIT FIX H3] Refresh Rate Limiter ───────────────────────────────────────
+// Prevents unlimited access token minting from a compromised refresh token.
+export const refreshRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 minute window
+  max: 30,                     // Generous for legitimate use, blocks abuse
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, res) =>
+    sendError(res, 'Too many refresh requests. Try again later.', 429),
 });
 
 // ── No-Cache for API Responses ────────────────────────────────────────────────

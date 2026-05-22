@@ -1,57 +1,63 @@
 /**
- * src/App.jsx
- *
- * Root application component with simple client-side routing.
- *
- * WHY manual routing instead of React Router:
- *  - For a 4-page app, a useState-based router is 0 extra dependencies
- *  - React Router adds value at ~10+ routes or when nested layouts are complex
- *  - Easy to swap to React Router later — just replace the switch
+ * src/App.jsx — Root application with state-based router
  */
-
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Navbar } from './components/layout/Navbar';
-import { HomePage } from './pages/HomePage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { useState } from 'react';
+import { Navbar }         from './components/layout/Navbar';
+import { HomePage }       from './pages/HomePage';
+import { BlogPostPage }   from './pages/BlogPostPage';
+import { ChatPage }       from './pages/ChatPage';
+import { LoginPage }      from './pages/LoginPage';
+import { RegisterPage }   from './pages/RegisterPage';
+import { ContactPage }    from './pages/ContactPage';
+import { AdminPage }      from './pages/AdminPage';
+import { RecoverPage }    from './pages/RecoverPage';
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [page, setPage] = useState('home');
+  // page: string, params: object
+  const [nav, setNav] = useState({ page: 'home', params: {} });
 
-  // Redirect to dashboard if already logged in
-  useEffect(() => {
-    if (!loading && user && (page === 'login' || page === 'register')) {
-      setPage('dashboard');
-    }
-  }, [user, loading, page]);
+  function navigate(page, params = {}) {
+    setNav({ page, params });
+  }
 
-  // Guard protected pages
+  // Auth guards
   useEffect(() => {
-    if (!loading && !user && page === 'dashboard') {
-      setPage('login');
+    if (loading) return;
+    if (!user && (nav.page === 'contact' || nav.page === 'admin')) {
+      navigate('login');
     }
-  }, [user, loading, page]);
+    if (user && nav.page === 'admin' && user.role !== 'admin') {
+      navigate('home');
+    }
+  }, [user, loading, nav.page]);
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100dvh' }}>
-        <div className="spinner spinner-lg" />
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100dvh',flexDirection:'column',gap:'0.75rem'}}>
+        <div className="spinner" style={{width:'2rem',height:'2rem'}} />
+        <div style={{fontSize:'var(--text-xs)',color:'var(--green-muted)',textTransform:'uppercase',letterSpacing:'0.15em'}}>
+          Initializing...
+        </div>
       </div>
     );
   }
 
+  const { page, params } = nav;
+
   return (
     <>
-      <Navbar onNavigate={setPage} />
-      <main style={{ flex: 1 }}>
-        {page === 'home'      && <HomePage      onNavigate={setPage} />}
-        {page === 'login'     && <LoginPage     onNavigate={setPage} />}
-        {page === 'register'  && <RegisterPage  onNavigate={setPage} />}
-        {page === 'dashboard' && <DashboardPage onNavigate={setPage} />}
+      <Navbar onNavigate={navigate} currentPage={page} />
+      <main style={{flex:1,display:'flex',flexDirection:'column'}}>
+        {page === 'home'     && <HomePage     onNavigate={navigate} />}
+        {page === 'post'     && <BlogPostPage slug={params.slug} onNavigate={navigate} />}
+        {page === 'chat'     && <ChatPage />}
+        {page === 'login'    && <LoginPage    onNavigate={navigate} />}
+        {page === 'register' && <RegisterPage onNavigate={navigate} />}
+        {page === 'contact'  && <ContactPage />}
+        {page === 'recover'  && <RecoverPage  onNavigate={navigate} />}
+        {page === 'admin'    && <AdminPage />}
       </main>
     </>
   );

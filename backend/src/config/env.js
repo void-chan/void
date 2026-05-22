@@ -32,6 +32,37 @@ function requireSecret(key) {
   return value;
 }
 
+// ── Production safety: reject known weak dev secrets ──────────────────────
+const KNOWN_WEAK_PREFIXES = [
+  'dev_jwt_secret',
+  'dev_refresh_secret',
+  'CHANGE_THIS',
+];
+
+function rejectWeakSecrets() {
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return;
+
+  for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
+    const val = process.env[key] ?? '';
+    for (const prefix of KNOWN_WEAK_PREFIXES) {
+      if (val.startsWith(prefix)) {
+        throw new Error(
+          `FATAL: "${key}" contains a known dev/placeholder secret. ` +
+          `Generate a real one: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+        );
+      }
+    }
+  }
+
+  // Cookies MUST be secure in production (HTTPS required)
+  if (process.env.COOKIE_SECURE !== 'true') {
+    throw new Error(
+      'FATAL: COOKIE_SECURE must be "true" in production. ' +
+      'Auth cookies sent over HTTP can be intercepted (MITM).'
+    );
+  }
+}
+
 export const env = {
   port: parseInt(require('PORT', '4000'), 10),
   host: require('HOST', 'localhost'),
@@ -39,7 +70,9 @@ export const env = {
   isDev: (process.env.NODE_ENV ?? 'development') === 'development',
 
   db: {
-    path: require('DB_PATH', './storage/database.sqlite'),
+    // In production (Railway): /data is the persistent volume mount point
+    // In development: local ./storage folder
+    path: require('DB_PATH', process.env.NODE_ENV === 'production' ? '/data/database.sqlite' : './storage/database.sqlite'),
   },
 
   jwt: {
@@ -47,6 +80,8 @@ export const env = {
     expiresIn: require('JWT_EXPIRES_IN', '15m'),
     refreshSecret: requireSecret('JWT_REFRESH_SECRET'),
     refreshExpiresIn: require('JWT_REFRESH_EXPIRES_IN', '7d'),
+    issuer: require('JWT_ISSUER', 'localhost'),
+    audience: require('JWT_AUDIENCE', 'localhost-client'),
   },
 
   cookie: {
@@ -73,3 +108,6 @@ export const env = {
     rounds: parseInt(require('BCRYPT_ROUNDS', '12'), 10),
   },
 };
+
+// Run production safety check after env is loaded
+rejectWeakSecrets();

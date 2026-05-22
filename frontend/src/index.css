@@ -1,186 +1,232 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   src/index.css  —  Global Design System
-   
-   WHY vanilla CSS:
-    - Zero runtime overhead vs CSS-in-JS solutions
-    - No build-time complexity (no PostCSS plugins needed for basic vars)
-    - Works perfectly with React without any additional setup
-    - CSS custom properties (--vars) give us design tokens natively
-    - Self-hosted via system font stack → no external font providers
+   index.css — DARKNET TERMINAL DESIGN SYSTEM
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Reset & Box Model ───────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Design Tokens ───────────────────────────────────────────────────────── */
 :root {
-  /* Color Palette — dark-first, neutral */
-  --color-bg:           #0d0f14;
-  --color-surface:      #161b27;
-  --color-surface-2:    #1e2535;
-  --color-border:       #2a3249;
-  --color-border-light: #374160;
+  /* Core palette — phosphor CRT monitor */
+  --bg:            #000000;
+  --bg-panel:      #030d03;
+  --bg-input:      #050f05;
+  --bg-hover:      #0a1a0a;
 
-  /* Accent — cool indigo */
-  --color-accent:       #6c8ef7;
-  --color-accent-hover: #8ca6ff;
-  --color-accent-muted: rgba(108, 142, 247, 0.12);
+  /* Green spectrum */
+  --green:         #00ff41;
+  --green-dim:     #00cc33;
+  --green-muted:   #006618;
+  --green-faint:   #002a0a;
+  --green-glow:    rgba(0, 255, 65, 0.12);
 
-  /* Status colors */
-  --color-success:      #4ade80;
-  --color-warning:      #facc15;
-  --color-error:        #f87171;
-  --color-info:         #60a5fa;
+  /* Accent colors */
+  --red:           #ff0040;
+  --red-dim:       #cc0030;
+  --amber:         #ffaa00;
+  --cyan:          #00ffff;
+  --white:         #c8ffc8;
+  --white-dim:     #7aaf7a;
 
-  /* Text */
-  --color-text:         #e2e8f0;
-  --color-text-muted:   #8892a4;
-  --color-text-faint:   #4b5675;
+  /* Borders */
+  --border:        #0a2a0a;
+  --border-bright: #00ff41;
+  --border-dim:    #006618;
 
-  /* Typography — system font stack (no external provider) */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-               'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
-               'Liberation Mono', monospace;
+  /* Fonts — monospace only */
+  --font: 'Share Tech Mono', 'Courier New', Courier, monospace;
 
-  /* Scale */
-  --text-xs:   0.75rem;
-  --text-sm:   0.875rem;
-  --text-base: 1rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  1.875rem;
-  --text-4xl:  2.25rem;
+  /* Sizes */
+  --text-xs:   0.7rem;
+  --text-sm:   0.8rem;
+  --text-base: 0.9rem;
+  --text-lg:   1rem;
+  --text-xl:   1.15rem;
+  --text-2xl:  1.35rem;
+  --text-3xl:  1.7rem;
+  --text-4xl:  2.2rem;
 
-  /* Spacing */
-  --space-1:  0.25rem;
-  --space-2:  0.5rem;
-  --space-3:  0.75rem;
-  --space-4:  1rem;
-  --space-5:  1.25rem;
-  --space-6:  1.5rem;
-  --space-8:  2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
+  --radius: 0;
+  --radius-sm: 0;
 
-  /* Border radius */
-  --radius-sm: 0.375rem;
-  --radius:    0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
-  --shadow:     0 4px 12px rgba(0,0,0,0.35);
-  --shadow-lg:  0 8px 32px rgba(0,0,0,0.45);
-  --shadow-accent: 0 0 20px rgba(108, 142, 247, 0.15);
-
-  /* Transitions */
-  --transition: 150ms ease;
-  --transition-slow: 300ms ease;
-
-  /* Z-index layers */
-  --z-base:    1;
-  --z-overlay: 10;
-  --z-modal:   100;
-  --z-toast:   1000;
+  --transition: 80ms ease;
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
 html {
   font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family:      var(--font-sans);
+  font-family:      var(--font);
   font-size:        var(--text-base);
-  line-height:      1.6;
-  color:            var(--color-text);
-  background-color: var(--color-bg);
+  color:            var(--green);
+  background-color: var(--bg);
   min-height:       100dvh;
+  line-height:      1.6;
+  /* CRT scanline overlay */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+/* CRT vignette + noise */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* Scan line animation */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    transparent 50%,
+    rgba(0, 255, 65, 0.025) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: scanlines 8s linear infinite;
+}
+
+@keyframes scanlines {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100vh; }
 }
 
 #root {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── Typography ──────────────────────────────────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
-  line-height:   1.25;
-  font-weight:   600;
-  letter-spacing: -0.02em;
-  color: var(--color-text);
+h1, h2, h3, h4 {
+  font-family: var(--font);
+  color: var(--green);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--green-dim);
   text-decoration: none;
-  transition: color var(--transition);
+  transition: color var(--transition), text-shadow var(--transition);
 }
-a:hover { color: var(--color-accent-hover); }
-
-code, pre {
-  font-family: var(--font-mono);
-  font-size: 0.9em;
+a:hover {
+  color: var(--green);
+  text-shadow: 0 0 8px var(--green);
 }
 
-/* ── Form Elements ───────────────────────────────────────────────────────── */
-input, textarea, select {
-  font-family: inherit;
-  font-size: inherit;
+::selection {
+  background: var(--green);
+  color: var(--bg);
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--color-bg); }
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-light);
-  border-radius: var(--radius-full);
-}
-
-/* ── Utility classes ─────────────────────────────────────────────────────── */
-.sr-only {
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.container {
-  width: 100%;
-  max-width: 1100px;
-  margin-inline: auto;
-  padding-inline: var(--space-6);
-}
+::-webkit-scrollbar { width: 4px; background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--green-muted); }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes glitch {
+  0%   { clip-path: inset(80% -6px 0 0); transform: translate(-4px); }
+  20%  { clip-path: inset(50% -6px 30% 0); transform: translate(4px); }
+  40%  { clip-path: inset(20% -6px 60% 0); transform: translate(-2px); }
+  60%  { clip-path: inset(40% -6px 40% 0); transform: translate(2px); }
+  80%  { clip-path: inset(0% -6px 80% 0); transform: translate(-4px); }
+  100% { clip-path: inset(80% -6px 0 0); transform: translate(0); }
+}
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes flicker {
+  0%,100% { opacity: 1; }
+  92%     { opacity: 1; }
+  93%     { opacity: 0.4; }
+  94%     { opacity: 1; }
+  96%     { opacity: 0.7; }
+  97%     { opacity: 1; }
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+.animate-fade-in { animation: fadeIn 0.2s ease both; }
+.flicker { animation: flicker 4s linear infinite; }
+
+/* ── Cursor blink ────────────────────────────────────────────────────────── */
+.cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  color: var(--green);
+  font-size: 0.9em;
 }
 
-.animate-fade-in { animation: fadeIn 0.3s ease both; }
+/* ── Glitch text ─────────────────────────────────────────────────────────── */
+.glitch {
+  position: relative;
+}
+.glitch:hover::before,
+.glitch:hover::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+}
+.glitch:hover::before {
+  color: var(--cyan);
+  animation: glitch 0.3s linear infinite;
+  opacity: 0.7;
+}
+.glitch:hover::after {
+  color: var(--red);
+  animation: glitch 0.3s linear infinite reverse;
+  opacity: 0.7;
+}
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+.text-green     { color: var(--green); }
+.text-dim       { color: var(--green-dim); }
+.text-muted     { color: var(--white-dim); }
+.text-red       { color: var(--red); }
+.text-amber     { color: var(--amber); }
+.text-cyan      { color: var(--cyan); }
+.text-sm        { font-size: var(--text-sm); }
+.text-xs        { font-size: var(--text-xs); }
+.uppercase      { text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* Green text shadow glow */
+.glow { text-shadow: 0 0 10px var(--green), 0 0 20px rgba(0,255,65,0.4); }

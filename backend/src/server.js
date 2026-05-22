@@ -27,6 +27,7 @@ import {
   noCacheMiddleware,
 } from './middleware/security.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { cleanupExpiredTokens } from './services/authService.js';
 import apiRoutes from './routes/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,12 @@ runMigrations();
 
 // ── Create app ────────────────────────────────────────────────────────────────
 const app = express();
+
+// ── Trust proxy (required for correct client IP behind Render/Nginx/Cloudflare) ─
+// Without this, rate limiting sees the proxy IP, not the real client IP.
+if (!env.isDev) {
+  app.set('trust proxy', parseInt(process.env.TRUST_PROXY ?? '1', 10));
+}
 
 // ── Security middleware (applied first) ───────────────────────────────────────
 app.use(helmetMiddleware);
@@ -68,6 +75,17 @@ app.use(
   })
 );
 
+// ── Health check (Railway uses this to verify app is alive) ──────────────────
+app.get('/api/health', (_req, res) => {
+  try {
+    const db = getDatabase();
+    db.prepare('SELECT 1').get(); // Verify DB is responding
+    res.json({ status: 'ok', db: 'ok', ts: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'error', db: 'unreachable' });
+  }
+});
+
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api', apiRoutes);
 
@@ -82,9 +100,23 @@ const server = app.listen(env.port, env.host, () => {
   });
 });
 
+// ── [AUDIT FIX M2] Periodic cleanup of expired tokens ────────────────────────
+// Runs every hour to purge expired refresh tokens and stale PoW challenges.
+const cleanupInterval = setInterval(() => {
+  try {
+    const { tokensRemoved, challengesRemoved } = cleanupExpiredTokens();
+    if (tokensRemoved > 0 || challengesRemoved > 0) {
+      logger.info('Periodic cleanup', { tokensRemoved, challengesRemoved });
+    }
+  } catch (err) {
+    logger.error('Cleanup failed', { message: err.message });
+  }
+}, 60 * 60 * 1000); // every hour
+
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 function shutdown(signal) {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
+  clearInterval(cleanupInterval);
   server.close(() => {
     closeDatabase();
     logger.info('Server and database closed.');

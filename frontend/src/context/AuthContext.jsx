@@ -1,14 +1,7 @@
 /**
  * src/context/AuthContext.jsx
- *
- * Global authentication state using React Context.
- *
- * WHY Context instead of Zustand/Redux:
- *  - Auth state is app-wide but simple (user/loading/handlers)
- *  - Zero extra dependencies for this use case
- *  - Easy to swap to Zustand later if state grows complex
+ * Global auth state — username-based, no email.
  */
-
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
@@ -18,34 +11,42 @@ export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check existing session on mount
   useEffect(() => {
     api.get('/auth/me')
-      .then(({ ok, data }) => {
-        if (ok) setUser(data.data.user);
-      })
+      .then(({ ok, data }) => { if (ok) setUser(data.data.user); })
       .finally(() => setLoading(false));
   }, []);
 
-  // Listen for auth:logout events (triggered by API client on refresh failure)
   useEffect(() => {
     const handler = () => setUser(null);
     window.addEventListener('auth:logout', handler);
     return () => window.removeEventListener('auth:logout', handler);
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const { ok, data } = await api.post('/auth/login', { email, password });
-    if (ok) {
-      setUser(data.data.user);
-      return { ok: true };
-    }
+  const login = useCallback(async (username, password, adminPhrase) => {
+    const { ok, data } = await api.post('/auth/login', {
+      username,
+      password,
+      ...(adminPhrase ? { adminPhrase } : {}),
+    });
+    if (ok) { setUser(data.data.user); return { ok: true }; }
     return { ok: false, message: data.message };
   }, []);
 
-  const register = useCallback(async (email, password) => {
-    const { ok, data } = await api.post('/auth/register', { email, password });
-    return { ok, message: data.message };
+  /**
+   * register — returns { ok, recoveryPhrase } on success.
+   * The caller is responsible for showing the phrase to the user.
+   */
+  const register = useCallback(async (username, password, challenge, nonce) => {
+    const { ok, data } = await api.post('/auth/register', { username, password, challenge, nonce: Number(nonce) });
+    if (ok) return { ok: true, recoveryPhrase: data.data.recoveryPhrase };
+    return { ok: false, message: data.message };
+  }, []);
+
+  const recover = useCallback(async (username, recoveryPhrase, newPassword) => {
+    const { ok, data } = await api.post('/auth/recover', { username, recoveryPhrase, newPassword });
+    if (ok) return { ok: true, newRecoveryPhrase: data.data.newRecoveryPhrase };
+    return { ok: false, message: data.message };
   }, []);
 
   const logout = useCallback(async () => {
@@ -54,13 +55,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, recover, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-/** Hook to consume auth context — throws if used outside AuthProvider */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');

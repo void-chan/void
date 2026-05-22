@@ -13,7 +13,16 @@
  *  - Only one refresh attempt per failed request to avoid infinite loops
  */
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+/** Get the full URL for a static file (uploaded images, attachments) */
+export function fileUrl(storedName) {
+  if (!storedName) return '';
+  const base = import.meta.env.VITE_API_URL || '';
+  // Remove trailing /api if present, add /files/
+  const origin = base.replace(/\/api$/, '');
+  return `${origin}/files/${storedName}`;
+}
 
 async function request(endpoint, options = {}) {
   const config = {
@@ -70,5 +79,13 @@ export const api = {
       body: formData,
       headers: {}, // Let browser set multipart boundary
       ...options,
+    }),
+
+  /** Multipart PATCH — for editing posts with optional image replacement */
+  uploadPatch: (endpoint, formData) =>
+    request(endpoint, {
+      method: 'PATCH',
+      body: formData,
+      headers: {}, // Let browser set multipart boundary
     }),
 };

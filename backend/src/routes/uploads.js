@@ -11,7 +11,7 @@
 
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { uploader } from '../middleware/upload.js';
+import { uploader, stripAndSave } from '../middleware/upload.js';
 import { upload, listUploads, removeUpload } from '../controllers/uploadController.js';
 
 const router = Router();
@@ -19,7 +19,7 @@ const router = Router();
 // All upload routes require authentication
 router.use(requireAuth);
 
-router.post('/',       uploader.single('file'), upload);
+router.post('/',       uploader.single('file'), stripAndSave, upload);
 router.get('/',        listUploads);
 router.delete('/:id',  removeUpload);
 

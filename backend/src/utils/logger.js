@@ -12,6 +12,7 @@
 const REDACTED = '[REDACTED]';
 
 // Fields that should never appear in logs
+// [AUDIT FIX L3] Added recovery phrase fields
 const SENSITIVE_FIELDS = new Set([
   'password',
   'password_hash',
@@ -22,6 +23,11 @@ const SENSITIVE_FIELDS = new Set([
   'cookie',
   'credit_card',
   'ssn',
+  'recoveryphrase',
+  'newrecoveryphrase',
+  'recovery_hash',
+  'recoveryPhrase',
+  'newRecoveryPhrase',
 ]);
 
 /**
