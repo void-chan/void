@@ -9,17 +9,12 @@ RUN npm install --omit=dev
 FROM node:22-alpine AS runtime
 WORKDIR /app
 
-# Security: run as non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src/ ./src/
 
-# Storage volume — will be mounted at runtime
-RUN mkdir -p storage/uploads /data && chown -R appuser:appgroup storage /data
-
-USER appuser
+# Ensure data and uploads directories exist
+RUN mkdir -p /data storage/uploads
 
 EXPOSE 4000
 ENV NODE_ENV=production
