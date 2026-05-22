@@ -12,11 +12,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src/ ./src/
+COPY start.sh ./start.sh
 
 # Ensure data and uploads directories exist
-RUN mkdir -p /data storage/uploads
+RUN mkdir -p /data storage/uploads && chmod +x start.sh
 
 EXPOSE 4000
 ENV NODE_ENV=production
 
-CMD ["node", "src/server.js"]
+CMD ["sh", "start.sh"]
