@@ -45,6 +45,17 @@ if (!env.isDev) {
   app.set('trust proxy', parseInt(process.env.TRUST_PROXY ?? '1', 10));
 }
 
+// ── Health check — BEFORE rate limiter so it's never blocked ────────────────
+app.get('/api/health', (_req, res) => {
+  try {
+    const db = getDatabase();
+    db.prepare('SELECT 1').get(); // Verify DB is responding
+    res.json({ status: 'ok', db: 'ok', ts: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'error', db: 'unreachable' });
+  }
+});
+
 // ── Security middleware (applied first) ───────────────────────────────────────
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
@@ -74,17 +85,6 @@ app.use(
     },
   })
 );
-
-// ── Health check (Railway uses this to verify app is alive) ──────────────────
-app.get('/api/health', (_req, res) => {
-  try {
-    const db = getDatabase();
-    db.prepare('SELECT 1').get(); // Verify DB is responding
-    res.json({ status: 'ok', db: 'ok', ts: new Date().toISOString() });
-  } catch {
-    res.status(503).json({ status: 'error', db: 'unreachable' });
-  }
-});
 
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api', apiRoutes);
