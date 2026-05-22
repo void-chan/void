@@ -15,7 +15,7 @@ COPY src/ ./src/
 COPY start.sh ./start.sh
 
 # Ensure data and uploads directories exist
-RUN mkdir -p /data storage/uploads && chmod +x start.sh
+RUN mkdir -p /data/uploads storage/uploads && chmod +x start.sh
 
 EXPOSE 4000
 ENV NODE_ENV=production
