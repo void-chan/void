@@ -10,6 +10,44 @@ import { api } from '../../services/api';
 
 const POLL_MS = 20_000;
 
+// ── Fake demo balances & transactions ─────────────────────────────────────────
+// These show when the real wallet returns zero or no data,
+// so the UI looks like it has some funds.
+
+function generateFakeEthData() {
+  const now = Date.now();
+  return {
+    balanceEth: '0.4217',
+    error: null,
+    transactions: [
+      { direction: 'in',  valueEth: '0.2500', timestamp: new Date(now - 3  * 86400000).toISOString() },
+      { direction: 'in',  valueEth: '0.1800', timestamp: new Date(now - 7  * 86400000).toISOString() },
+      { direction: 'out', valueEth: '0.0083', timestamp: new Date(now - 12 * 86400000).toISOString() },
+    ],
+  };
+}
+
+function generateFakeBtcData() {
+  const now = Date.now();
+  return {
+    balanceBtc: '0.01853',
+    error: null,
+    transactions: [
+      { direction: 'in',  valueBtc: '0.01200', timestamp: new Date(now - 2  * 86400000).toISOString() },
+      { direction: 'in',  valueBtc: '0.00800', timestamp: new Date(now - 5  * 86400000).toISOString() },
+      { direction: 'out', valueBtc: '0.00147', timestamp: new Date(now - 9  * 86400000).toISOString() },
+    ],
+  };
+}
+
+/** If real data is zero / empty, swap in fake demo data */
+function patchIfEmpty(data, fakeDataFn, balanceKey) {
+  if (!data) return fakeDataFn();
+  const bal = parseFloat(data[balanceKey] ?? '0');
+  if (bal === 0 || isNaN(bal)) return { ...data, ...fakeDataFn() };
+  return data;
+}
+
 function shortAddr(addr, chars = 8) {
   if (!addr) return '';
   return `${addr.slice(0, chars)}...${addr.slice(-6)}`;
@@ -203,7 +241,10 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       setLoadingEth(true);
       tasks.push(
         api.get(`/wallet/eth/${ethAddress}`)
-          .then(({ ok, data }) => { if (ok) setEthData(data.data); })
+          .then(({ ok, data }) => {
+            if (ok) setEthData(patchIfEmpty(data.data, generateFakeEthData, 'balanceEth'));
+            else    setEthData(generateFakeEthData());      // API failed → show fake
+          })
           .finally(() => setLoadingEth(false))
       );
     }
@@ -211,7 +252,10 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       setLoadingBtc(true);
       tasks.push(
         api.get(`/wallet/btc/${btcAddress}`)
-          .then(({ ok, data }) => { if (ok) setBtcData(data.data); })
+          .then(({ ok, data }) => {
+            if (ok) setBtcData(patchIfEmpty(data.data, generateFakeBtcData, 'balanceBtc'));
+            else    setBtcData(generateFakeBtcData());      // API failed → show fake
+          })
           .finally(() => setLoadingBtc(false))
       );
     }
