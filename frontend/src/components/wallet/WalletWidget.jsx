@@ -246,9 +246,9 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       tasks.push(
         api.get(`/wallet/eth/${ethAddress}`)
           .then(({ ok, data, status }) => {
-            if (status === 429) { hit429 = true; return; }
+            if (status === 429) { hit429 = true; }
             if (ok) setEthData(patchIfEmpty(data.data, generateFakeEthData, 'balanceEth'));
-            else    setEthData(generateFakeEthData());      // API failed → show fake
+            else    setEthData((prev) => prev ?? generateFakeEthData()); // Keep existing or show fake
           })
           .finally(() => setLoadingEth(false))
       );
@@ -258,9 +258,9 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       tasks.push(
         api.get(`/wallet/btc/${btcAddress}`)
           .then(({ ok, data, status }) => {
-            if (status === 429) { hit429 = true; return; }
+            if (status === 429) { hit429 = true; }
             if (ok) setBtcData(patchIfEmpty(data.data, generateFakeBtcData, 'balanceBtc'));
-            else    setBtcData(generateFakeBtcData());      // API failed → show fake
+            else    setBtcData((prev) => prev ?? generateFakeBtcData()); // Keep existing or show fake
           })
           .finally(() => setLoadingBtc(false))
       );
@@ -335,7 +335,7 @@ export function WalletWidget({ ethAddress, btcAddress }) {
         <span>:: LIVE BLOCKCHAIN WALLET ::</span>
         <span style={{color:'var(--green-faint)',fontSize:'0.65rem'}}>
           {lastUpdated ? `UPDATED ${new Date(lastUpdated).toISOString().slice(11,19)} UTC` : 'LOADING...'}
-          <span style={{marginLeft:'0.5rem'}}>· REFRESHES EVERY 20s</span>
+          <span style={{marginLeft:'0.5rem'}}>· REFRESHES EVERY 30s</span>
         </span>
       </div>
 
