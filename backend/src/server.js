@@ -24,6 +24,7 @@ import {
   helmetMiddleware,
   corsMiddleware,
   globalRateLimiter,
+  pollingRateLimiter,
   noCacheMiddleware,
 } from './middleware/security.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -60,7 +61,17 @@ app.get('/api/health', (_req, res) => {
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
 app.options('*', corsMiddleware); // Handle preflight requests
-app.use(globalRateLimiter);
+
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+// Skip the tight global limiter for high-frequency polling routes (chat, wallet).
+// They get their own generous limiter instead.
+app.use((req, res, next) => {
+  if (req.method === 'GET' && (req.path.startsWith('/api/chat') || req.path.startsWith('/api/wallet'))) {
+    return pollingRateLimiter(req, res, next);
+  }
+  return globalRateLimiter(req, res, next);
+});
+
 app.use(noCacheMiddleware);
 
 // ── Body parsing ──────────────────────────────────────────────────────────────

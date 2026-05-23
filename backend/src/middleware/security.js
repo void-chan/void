@@ -96,6 +96,19 @@ export const refreshRateLimiter = rateLimit({
     sendError(res, 'Too many refresh requests. Try again later.', 429),
 });
 
+// ── Polling Rate Limiter (generous — for high-frequency read-only endpoints) ──
+// Chat polls every ~8s, wallet every ~30s. 600 per 15 min keeps things smooth
+// without allowing real abuse. Applied per-route, NOT globally.
+export const pollingRateLimiter = rateLimit({
+  windowMs: env.rateLimit.windowMs,
+  max: 600,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  handler: (_req, res) =>
+    sendError(res, 'Too many requests, please slow down.', 429),
+});
+
 // ── No-Cache for API Responses ────────────────────────────────────────────────
 export function noCacheMiddleware(_req, res, next) {
   res.setHeader('Cache-Control', 'no-store');

@@ -7,12 +7,14 @@
  *  - Spam detection gives immediate feedback
  *  - Auto-scrolls to bottom
  *  - Shows own messages in different color
- *  - Polls every 5 seconds for new messages
+ *  - Smart polling: pauses when tab is hidden, backs off on 429
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 
-const POLL_INTERVAL = 5000;
+const BASE_POLL_MS  = 8000;   // Normal poll interval
+const MAX_BACKOFF   = 60000;  // Max backoff on repeated 429s
+const BACKOFF_DECAY = 0.5;    // How quickly backoff recovers on success
 
 function formatTime(ts) {
   return new Date(ts).toISOString().slice(11, 19);
@@ -37,15 +39,33 @@ export function ChatPage() {
   const [timer, setTimer]           = useState('--:--');
   const [loading, setLoading]       = useState(true);
 
-  const bottomRef   = useRef(null);
-  const inputRef    = useRef(null);
-  const pollRef     = useRef(null);
+  const bottomRef    = useRef(null);
+  const inputRef     = useRef(null);
+  const timeoutRef   = useRef(null);
+  const backoffRef   = useRef(0);       // Current extra backoff in ms
+  const mountedRef   = useRef(true);
 
-  // ── Fetch chat state ──────────────────────────────────────────────
+  // ── Fetch chat state (with backoff awareness) ─────────────────────
   const fetchChat = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    const { ok, data } = await api.get('/chat');
+    const { ok, data, status } = await api.get('/chat');
     if (!silent) setLoading(false);
+
+    if (status === 429) {
+      // Double the backoff, capped at MAX_BACKOFF
+      backoffRef.current = Math.min(
+        MAX_BACKOFF,
+        Math.max(BASE_POLL_MS, backoffRef.current * 2 || BASE_POLL_MS)
+      );
+      return;
+    }
+
+    // Successful request → gradually reduce backoff
+    if (backoffRef.current > 0) {
+      backoffRef.current = Math.floor(backoffRef.current * BACKOFF_DECAY);
+      if (backoffRef.current < BASE_POLL_MS) backoffRef.current = 0;
+    }
+
     if (!ok) return;
 
     const newMsgs = data.data.messages ?? [];
@@ -64,18 +84,47 @@ export function ChatPage() {
     setNextReset(data.data.nextResetAt);
   }, []);
 
-  // ── Fetch own handle ──────────────────────────────────────────────
+  // ── Smart polling: visibility-aware + backoff ─────────────────────
   useEffect(() => {
+    mountedRef.current = true;
+
+    // Fetch own handle once
     api.get('/chat/me').then(({ ok, data }) => {
-      if (ok) {
-        setMyHandle(data.data.handle);
-      }
+      if (ok && mountedRef.current) setMyHandle(data.data.handle);
     });
+
+    // Initial fetch
     fetchChat();
 
-    // Poll for new messages
-    pollRef.current = setInterval(() => fetchChat(true), POLL_INTERVAL);
-    return () => clearInterval(pollRef.current);
+    // Schedule next poll with dynamic interval
+    function scheduleNext() {
+      if (!mountedRef.current) return;
+      const delay = BASE_POLL_MS + backoffRef.current;
+      timeoutRef.current = setTimeout(async () => {
+        if (!mountedRef.current) return;
+        // Skip if tab is hidden — no wasted requests
+        if (!document.hidden) {
+          await fetchChat(true);
+        }
+        scheduleNext();
+      }, delay);
+    }
+    scheduleNext();
+
+    // Pause/resume on tab visibility change
+    function onVisibility() {
+      if (!document.hidden && mountedRef.current) {
+        // Tab became visible — fetch immediately, then resume normal schedule
+        fetchChat(true);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timeoutRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [fetchChat]);
 
   // ── Countdown timer ───────────────────────────────────────────────

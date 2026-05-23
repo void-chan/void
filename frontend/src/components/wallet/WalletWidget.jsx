@@ -8,7 +8,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../services/api';
 
-const POLL_MS = 20_000;
+const POLL_MS       = 30_000;  // Normal poll interval
+const MAX_BACKOFF   = 120_000; // Max backoff on repeated 429s
 
 // ── Fake demo balances & transactions ─────────────────────────────────────────
 // These show when the real wallet returns zero or no data,
@@ -233,15 +234,19 @@ export function WalletWidget({ ethAddress, btcAddress }) {
   const [loadingEth, setLoadingEth] = useState(false);
   const [loadingBtc, setLoadingBtc] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const pollRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const backoffRef = useRef(0);
+  const mountedRef = useRef(true);
 
   const fetchData = useCallback(async () => {
+    let hit429 = false;
     const tasks = [];
     if (ethAddress) {
       setLoadingEth(true);
       tasks.push(
         api.get(`/wallet/eth/${ethAddress}`)
-          .then(({ ok, data }) => {
+          .then(({ ok, data, status }) => {
+            if (status === 429) { hit429 = true; return; }
             if (ok) setEthData(patchIfEmpty(data.data, generateFakeEthData, 'balanceEth'));
             else    setEthData(generateFakeEthData());      // API failed → show fake
           })
@@ -252,7 +257,8 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       setLoadingBtc(true);
       tasks.push(
         api.get(`/wallet/btc/${btcAddress}`)
-          .then(({ ok, data }) => {
+          .then(({ ok, data, status }) => {
+            if (status === 429) { hit429 = true; return; }
             if (ok) setBtcData(patchIfEmpty(data.data, generateFakeBtcData, 'balanceBtc'));
             else    setBtcData(generateFakeBtcData());      // API failed → show fake
           })
@@ -260,13 +266,53 @@ export function WalletWidget({ ethAddress, btcAddress }) {
       );
     }
     await Promise.all(tasks);
-    setLastUpdated(new Date().toISOString());
+
+    if (hit429) {
+      // Exponential backoff
+      backoffRef.current = Math.min(
+        MAX_BACKOFF,
+        Math.max(POLL_MS, backoffRef.current * 2 || POLL_MS)
+      );
+    } else {
+      // Gradually recover
+      if (backoffRef.current > 0) {
+        backoffRef.current = Math.floor(backoffRef.current * 0.5);
+        if (backoffRef.current < POLL_MS) backoffRef.current = 0;
+      }
+      setLastUpdated(new Date().toISOString());
+    }
   }, [ethAddress, btcAddress]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
-    pollRef.current = setInterval(fetchData, POLL_MS);
-    return () => clearInterval(pollRef.current);
+
+    function scheduleNext() {
+      if (!mountedRef.current) return;
+      const delay = POLL_MS + backoffRef.current;
+      timeoutRef.current = setTimeout(async () => {
+        if (!mountedRef.current) return;
+        // Skip if tab is hidden
+        if (!document.hidden) {
+          await fetchData();
+        }
+        scheduleNext();
+      }, delay);
+    }
+    scheduleNext();
+
+    function onVisibility() {
+      if (!document.hidden && mountedRef.current) {
+        fetchData();
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timeoutRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [fetchData]);
 
   if (!ethAddress && !btcAddress) return null;
