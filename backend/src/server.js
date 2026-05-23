@@ -23,8 +23,6 @@ import { logger } from './utils/logger.js';
 import {
   helmetMiddleware,
   corsMiddleware,
-  globalRateLimiter,
-  pollingRateLimiter,
   noCacheMiddleware,
 } from './middleware/security.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -46,7 +44,7 @@ if (!env.isDev) {
   app.set('trust proxy', parseInt(process.env.TRUST_PROXY ?? '1', 10));
 }
 
-// ── Health check — BEFORE rate limiter so it's never blocked ────────────────
+// ── Health check — BEFORE any middleware so it's never blocked ───────────────
 app.get('/api/health', (_req, res) => {
   try {
     const db = getDatabase();
@@ -61,17 +59,8 @@ app.get('/api/health', (_req, res) => {
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
 app.options('*', corsMiddleware); // Handle preflight requests
-
-// ── Rate limiters ─────────────────────────────────────────────────────────────
-// Skip the tight global limiter for high-frequency polling routes (chat, wallet).
-// They get their own generous limiter instead.
-app.use((req, res, next) => {
-  if (req.method === 'GET' && (req.path.startsWith('/api/chat') || req.path.startsWith('/api/wallet'))) {
-    return pollingRateLimiter(req, res, next);
-  }
-  return globalRateLimiter(req, res, next);
-});
-
+// NOTE: No global rate limiter — Railway quota handles it.
+// Rate limits are applied per-route on auth endpoints only (see routes/auth.js).
 app.use(noCacheMiddleware);
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
